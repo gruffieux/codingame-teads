@@ -4,27 +4,6 @@
  * the standard input according to the problem statement.
  **/
 
- class Node {
-    public $_id;
-    public $_visited, $_depth, $_first, $_last, $_next, $_parent;
-    public function __construct($id) {
-        $this->_id = $id;
-        $this->_visited = -1;
-        $this->_depth = -1;
-        $this->_first = $this->_last = $this->_next = $this->_parent = null;
-    }
-    public function link(Node $node) {
-        if ($this->_last) {
-            $this->_last->_next = $node;
-        }
-        else {
-            $this->_first = $node;
-        }
-        $this->_last = $node;
-        $node->_parent = $this;
-    }
- }
-
 fscanf(STDIN, "%d",
     $n // the number of adjacency relations
 );
@@ -35,51 +14,54 @@ for ($i = 0; $i < $n; $i++) {
         $yi // the ID of a person which is adjacent to xi
     );
     if (!isset($nodes[$xi])) {
-        $nodes[$xi] = new Node($xi);
+        $nodes[$xi] = [];
     }
     if (!isset($nodes[$yi])) {
-        $nodes[$yi] = new Node($yi);
+        $nodes[$yi] = [];
     }
-    $nodes[$xi]->link($nodes[$yi]);
+    $nodes[$xi][] = $yi;
+    $nodes[$yi][] = $xi;
 }
 error_log("total: " . count($nodes));
 
-function bfs(Node $origin, $max, $visitFlag) {
+function bfs(array &$graph, $origin, $max, &$less) {
     //error_log("----- origin: " . $origin['index']);
     
-    $list = [];
-    $origin->_visited = $visitFlag;
-    $origin->_depth = 0;
+    $list = $visit = $depth = $splice = [];
+    $visit[$origin] = 1;
+    $depth[$origin] = 0;
     $list[] = $origin;
     $maxDepth = -1;
     
     while (!empty($list)) {
-        $node = array_pop($list);
-        $n = $node->_first;
-        //error_log("key: " . $visitFlag . ", node: " . $node->_id . ", depth: " . $node->_depth);
-        while ($n) {
-            if ($n->_visited != $visitFlag) {
-                $n->_visited = $visitFlag;
-                $n->_depth = $node->_depth + 1;
-                if ($max != -1 && $n->_depth >= $max) {
-                    return $max;
+        $u = array_pop($list);
+        if (!isset($graph[$u])) {
+        	continue;
+        }
+        foreach ($graph[$u] as $v) {
+            if (empty($visit[$v])) {
+                $visit[$v] = 1;
+                $depth[$v] = $depth[$u] + 1;
+                if ($max != -1 && $depth[$v] > $max) {
+                	$splice[$u][] = $v;
                 }
-                $list[] = $n;
-                if ($n->_depth > $maxDepth || $maxDepth == -1) {
-                    $maxDepth = $n->_depth;
+                array_unshift($list, $v);
+                if ($depth[$v] > $maxDepth || $maxDepth == -1) {
+                    $maxDepth = $depth[$v];
                 }
             }
-            $n = $n->_next;
         }
-        $n = $node->_parent;
-        if ($n && $n->_visited != $visitFlag) {
-            $n->_visited = $visitFlag;
-            $n->_depth = $node->_depth + 1;
-            $list[] = $n;
-            if ($n->_depth > $maxDepth || $maxDepth == -1) {
-                $maxDepth = $n->_depth;
-            }
-        }
+    }
+    
+    // On enlève les nodes inutiles
+    $less = '';
+    foreach ($splice as $u => $childs) {
+    	foreach ($childs as $v) {
+    		if (isset($graph[$v])) {
+    			$less .= $v . ',';
+    			unset($graph[$v]);
+    		}
+    	}
     }
     
     return $maxDepth;
@@ -88,13 +70,34 @@ function bfs(Node $origin, $max, $visitFlag) {
 // Write an action using echo(). DON'T FORGET THE TRAILING \n
 // To debug (equivalent to var_dump): error_log(var_export($var, true));
 
+$list = $visit = [];
+$u = key($nodes);
+$list[] = $u;
+$visit[$u] = 1;
 $minHours = -1;
-foreach ($nodes as $key => $node) {
-    $hours = bfs($node, $minHours, $key);
-    //error_log("key: " . $key . ", hours: " . $hours);
-    if ($hours < $minHours || $minHours == -1) {
-        $minHours = $hours;
-    }
+
+while (!empty($list)) {
+	$u = array_pop($list);
+	if (!isset($nodes[$u])) {
+		continue;
+	}
+	$less = '';
+	$hours = bfs($nodes, $u, $minHours, $less);
+	if ($hours < $minHours || $minHours == -1) {
+		$minHours = $hours;
+	}
+	foreach ($nodes[$u] as $v) {
+		if (empty($visit[$v])) {
+			$visit[$v] = 1;
+			array_unshift($list, $v);
+		}
+	}
+	$nexts = '';
+	foreach ($list as $n) {
+		$nexts .= $n . ',';
+	}
+	error_log("start: " . $u . " hours: " . $minHours . ' nexts: ' . $nexts);
+	error_log("less: " . $less);
 }
 
 // The minimal amount of steps required to completely propagate the advertisement
