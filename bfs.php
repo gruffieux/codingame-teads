@@ -4,27 +4,6 @@
  * the standard input according to the problem statement.
  **/
 
- class Node {
-    public $_id;
-    public $_visited, $_depth, $_first, $_last, $_next, $_parent;
-    public function __construct($id) {
-        $this->_id = $id;
-        $this->_visited = -1;
-        $this->_depth = -1;
-        $this->_first = $this->_last = $this->_next = $this->_parent = null;
-    }
-    public function link(Node $node) {
-        if ($this->_last) {
-            $this->_last->_next = $node;
-        }
-        else {
-            $this->_first = $node;
-        }
-        $this->_last = $node;
-        $node->_parent = $this;
-    }
- }
-
 fscanf(STDIN, "%d",
     $n // the number of adjacency relations
 );
@@ -35,49 +14,39 @@ for ($i = 0; $i < $n; $i++) {
         $yi // the ID of a person which is adjacent to xi
     );
     if (!isset($nodes[$xi])) {
-        $nodes[$xi] = new Node($xi);
+        $nodes[$xi] = [];
     }
     if (!isset($nodes[$yi])) {
-        $nodes[$yi] = new Node($yi);
+        $nodes[$yi] = [];
     }
-    $nodes[$xi]->link($nodes[$yi]);
+    array_unshift($nodes[$xi], $yi);
+    array_unshift($nodes[$yi], $xi);
+    
 }
 error_log("total: " . count($nodes));
 
-function bfs(Node $origin, $max, $visitFlag) {
+function bfs(array &$graph, $origin, $max) {
     //error_log("----- origin: " . $origin['index']);
     
-    $list = [];
-    $origin->_visited = $visitFlag;
-    $origin->_depth = 0;
+    $list = $visit = $depth = [];
+    $visit[$origin] = 1;
+    $depth[$origin] = 0;
     $list[] = $origin;
     $maxDepth = -1;
     
     while (!empty($list)) {
-        $node = array_pop($list);
-        $n = $node->_first;
-        //error_log("key: " . $visitFlag . ", node: " . $node->_id . ", depth: " . $node->_depth);
-        while ($n) {
-            if ($n->_visited != $visitFlag) {
-                $n->_visited = $visitFlag;
-                $n->_depth = $node->_depth + 1;
-                if ($max != -1 && $n->_depth >= $max) {
-                    return $max;
+        $u = array_pop($list);
+        foreach ($graph[$u] as $v) {
+            if (empty($visit[$v])) {
+                $visit[$v] = 1;
+                $depth[$v] = $depth[$u] + 1;
+                if ($max != -1 && $depth[$v] > $max) {
+                	return $max;
                 }
-                $list[] = $n;
-                if ($n->_depth > $maxDepth || $maxDepth == -1) {
-                    $maxDepth = $n->_depth;
+                array_unshift($list, $v);
+                if ($depth[$v] > $maxDepth || $maxDepth == -1) {
+                    $maxDepth = $depth[$v];
                 }
-            }
-            $n = $n->_next;
-        }
-        $n = $node->_parent;
-        if ($n && $n->_visited != $visitFlag) {
-            $n->_visited = $visitFlag;
-            $n->_depth = $node->_depth + 1;
-            $list[] = $n;
-            if ($n->_depth > $maxDepth || $maxDepth == -1) {
-                $maxDepth = $n->_depth;
             }
         }
     }
@@ -90,8 +59,9 @@ function bfs(Node $origin, $max, $visitFlag) {
 
 $minHours = -1;
 foreach ($nodes as $key => $node) {
-    $hours = bfs($node, $minHours, $key);
-    //error_log("key: " . $key . ", hours: " . $hours);
+	//error_log(var_export($nodes, true));
+    //error_log("start: " . $key . ", hours: " . $minHours);
+    $hours = bfs($nodes, $key, $minHours);
     if ($hours < $minHours || $minHours == -1) {
         $minHours = $hours;
     }
